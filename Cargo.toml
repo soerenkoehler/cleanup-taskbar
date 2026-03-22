@@ -1,0 +1,31 @@
+[package]
+name = "cleanup-taskbar"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "cleanup-taskbar" # The name of the target.
+path = "src/main.rs"     # The source file of the target.
+test = false             # Is tested by default.
+doctest = false          # Documentation examples are tested by default.
+bench = false            # Is benchmarked by default.
+doc = false              # Is documented by default.
+proc-macro = false       # Set to `true` for a proc-macro library.
+harness = false          # Use libtest harness.
+required-features = []   # Features required to build this target (N/A for lib).
+
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Link Time Optimization
+panic = "abort"     # Remove panic unwinding
+
+[dependencies.windows-sys]
+version = "0.61.2"
+features = [
+"Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Environment",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging"
+]
