@@ -12,7 +12,7 @@ function unpin_taskbar([string]$appname) {
 	}
 }
 
-$DIR_USER="C:\Users\KOEHLES"
+$DIR_USER=$env:USERPROFILE
 $DIR_ROAMING="$DIR_USER\AppData\Roaming"
 $DIR_MS="$DIR_ROAMING\Microsoft"
 $DIR_STARTMENU="$DIR_MS\Windows\Start Menu\Programs"
