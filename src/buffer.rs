@@ -1,11 +1,12 @@
-pub struct ZeroTerminatedBuffer<const CAPACITY: usize> {
+#[derive(Clone)]
+pub struct String<const CAPACITY: usize> {
     data: [u16; CAPACITY],
     len: usize,
 }
 
-impl<const CAPACITY: usize> ZeroTerminatedBuffer<CAPACITY> {
+impl<const CAPACITY: usize> String<CAPACITY> {
     pub fn new() -> Self {
-        ZeroTerminatedBuffer {
+        String {
             data: [0u16; CAPACITY],
             len: 0,
         }
@@ -15,7 +16,7 @@ impl<const CAPACITY: usize> ZeroTerminatedBuffer<CAPACITY> {
         self.append_iter_u16(s.encode_utf16())
     }
 
-    pub fn append_iter_u16<T: Iterator<Item = u16>>(mut self, mut iter: T) -> Self {
+    pub fn append_iter_u16<'a, T: Iterator<Item = u16>>(mut self, mut iter: T) -> Self {
         loop {
             match iter.next() {
                 Some(c) => self = self.append_u16(c),
@@ -42,15 +43,20 @@ impl<const CAPACITY: usize> ZeroTerminatedBuffer<CAPACITY> {
         }
 
         // last char in buffer is always zero
-        match self.len {
-            l if l >= CAPACITY - 1 => self.data[CAPACITY - 1] = 0,
-            _ => {
-                self.data[self.len] = c;
-                self.len += 1;
-            }
+        let d = if self.len >= CAPACITY - 1 { 0 } else { c };
+
+        self.data[self.len] = d;
+
+        // don't count terminator
+        if d != 0 {
+            self.len += 1;
         };
 
         self
+    }
+
+    pub fn as_iter<'a>(&'a self) -> impl Iterator<Item = u16> + 'a {
+        self.data[..self.len].iter().copied()
     }
 
     pub fn as_ptr(self) -> *const u16 {

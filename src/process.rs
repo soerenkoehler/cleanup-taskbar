@@ -1,6 +1,7 @@
-use core::mem::zeroed;
+use core::{mem::zeroed, sync::atomic::Ordering};
 
 use windows_sys::Win32::{
+    Foundation::{self, GetLastError},
     Storage::FileSystem::SearchPathW,
     System::{
         Environment::GetCommandLineW,
@@ -12,7 +13,9 @@ use windows_sys::Win32::{
     UI::WindowsAndMessaging::SW_HIDE,
 };
 
-use crate::buffer::ZeroTerminatedBuffer;
+use crate::{LOG, buffer::String};
+
+const MAX_PATH: usize = Foundation::MAX_PATH as usize;
 
 pub fn get_arguments() -> *const u16 {
     const SPACE: u16 = b' ' as u16;
@@ -46,29 +49,59 @@ pub fn get_arguments() -> *const u16 {
     cmd_line
 }
 
-pub fn search_path(s: &str) -> ZeroTerminatedBuffer<260> {
-    let mut full_path = [0u16; 260]; // MAX_PATH is 260
+pub fn search_path(s: &str) -> String<MAX_PATH> {
+    let log = unsafe { &*LOG.load(Ordering::SeqCst) };
+
+    let mut full_path = [0u16; MAX_PATH];
     let mut file_part = core::ptr::null_mut();
+
+    let lpfilename = String::<MAX_PATH>::new().append_str(s);
+    log.write_str("filename: ");
+    log.write_iter_u16(
+        String::<MAX_PATH>::new()
+            .append_iter_u16(lpfilename.as_iter())
+            .as_iter(),
+    );
+    log.write_str("\r\n");
+    log.write_str("filename: ");
+    log.write_iter_u16(
+        String::<MAX_PATH>::new()
+            .append_iter_u16(lpfilename.as_iter())
+            .as_iter(),
+    );
+    log.write_str("\r\n");
 
     let result = unsafe {
         SearchPathW(
-            core::ptr::null(), // Use default search path (includes %PATH%)
-            ZeroTerminatedBuffer::<256>::new().append_str(s).as_ptr(), // The file to search for
-            core::ptr::null(), // No specific extension (it's already in the name)
+            core::ptr::null(),
+            lpfilename.as_ptr(),
+            core::ptr::null(),
             full_path.len() as u32,
             full_path.as_mut_ptr(),
-            &mut file_part, // Receives pointer to the filename part of the path
+            &mut file_part,
         ) as usize
     };
 
     if result == 0 || result >= full_path.len() {
+        let error = unsafe { GetLastError() };
+        log.write_str("error: ");
+        log.write_str(itoa::Buffer::new().format(error));
+        log.write_str("\r\n");
         panic!("File search error");
     }
 
-    ZeroTerminatedBuffer::new().append_iter_u16(full_path.into_iter())
+    log.write_str("result: ");
+    log.write_iter_u16(
+        String::<MAX_PATH>::new()
+            .append_iter_u16(full_path[..result].into_iter().cloned())
+            .as_iter(),
+    );
+    log.write_str("\r\n");
+
+    String::new().append_iter_u16(full_path[..result].into_iter().cloned())
 }
 
-pub fn create_process<const CAPACITY: usize>(cmd: ZeroTerminatedBuffer<CAPACITY>) {
+pub fn create_process<const CAPACITY: usize>(cmd: String<CAPACITY>) {
     let mut si: STARTUPINFOW = unsafe { zeroed() };
     si.cb = size_of::<STARTUPINFOW>() as u32;
     si.dwFlags = STARTF_USESHOWWINDOW;
